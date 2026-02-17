@@ -57,8 +57,8 @@ tasks:
       - task: infra:apply
       - task: bootstrap:flux
       - task: vault:init
-      - echo "✓ Full deployment complete!"
-      - echo "  Your cluster is ready at: https://*.$(kubectl get configmap cluster-settings -n flux-system -o jsonpath='{.data.CLUSTER_DOMAIN}' 2>/dev/null || echo 'your-domain.com')"
+      - cmd: echo "Full deployment complete"
+      - cmd: echo "Your cluster is ready"
 
   discover:
     desc: Run OCI discovery and generate base Terraform
