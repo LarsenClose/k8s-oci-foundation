@@ -4,6 +4,7 @@
     "config:recommended",
     "schedule:weekly"
   ],
+  "platformAutomerge": true,
   "packageRules": [
     {
       "matchManagers": ["terraform"],
