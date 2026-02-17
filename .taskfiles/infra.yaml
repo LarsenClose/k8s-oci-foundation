@@ -1,0 +1,76 @@
+version: '3'
+
+vars:
+  TF_DIR: '{{.ROOT_DIR}}/environments/{{.ENV | default "dev"}}'
+
+tasks:
+  init:
+    desc: Initialize Terraform for environment
+    dir: '{{.TF_DIR}}'
+    cmds:
+      - tofu init -upgrade
+
+  plan:
+    desc: Run Terraform plan
+    dir: '{{.TF_DIR}}'
+    vars:
+      ENV: '{{.ENV | default "dev"}}'
+    cmds:
+      - task: init
+      - tofu plan -out=tfplan -var-file=terraform.tfvars
+      - echo "✓ Plan saved to {{.TF_DIR}}/tfplan"
+
+  apply:
+    desc: Apply Terraform plan
+    dir: '{{.TF_DIR}}'
+    vars:
+      ENV: '{{.ENV | default "dev"}}'
+    cmds:
+      - |
+        if [ ! -f tfplan ]; then
+          echo "No plan found. Running plan first..."
+          task infra:plan ENV={{.ENV}}
+        fi
+      - tofu apply tfplan
+      - rm -f tfplan
+      - task: outputs
+      - echo "✓ Infrastructure deployed"
+
+  destroy:
+    desc: Destroy infrastructure (DANGEROUS)
+    dir: '{{.TF_DIR}}'
+    prompt: This will DESTROY all infrastructure. Continue?
+    cmds:
+      - tofu destroy -var-file=terraform.tfvars
+
+  outputs:
+    desc: Show Terraform outputs
+    dir: '{{.TF_DIR}}'
+    cmds:
+      - tofu output -json | jq .
+
+  kubeconfig:
+    desc: Fetch kubeconfig from OCI
+    dir: '{{.TF_DIR}}'
+    cmds:
+      - |
+        cluster_id=$(tofu output -raw cluster_ocid 2>/dev/null)
+        if [ -z "$cluster_id" ]; then
+          echo "✗ No cluster_ocid output found"
+          exit 1
+        fi
+        oci ce cluster create-kubeconfig \
+          --cluster-id "$cluster_id" \
+          --file {{.ROOT_DIR}}/kubeconfig \
+          --region ${TF_VAR_region} \
+          --token-version 2.0.0 \
+          --kube-endpoint PUBLIC_ENDPOINT
+        chmod 600 {{.ROOT_DIR}}/kubeconfig
+        echo "✓ Kubeconfig saved to {{.ROOT_DIR}}/kubeconfig"
+
+  validate:
+    desc: Validate Terraform configuration
+    dir: '{{.TF_DIR}}'
+    cmds:
+      - tofu validate
+      - tofu fmt -check

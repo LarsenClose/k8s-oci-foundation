@@ -1,0 +1,14 @@
+---
+# Standalone PVC example (not needed if using volumeClaimTemplates in StatefulSet)
+# Use this for Deployments that need persistent storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-stateful-app-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ${STORAGE_CLASS:-oci-bv}
+  resources:
+    requests:
+      storage: 10Gi

@@ -1,0 +1,25 @@
+---
+# Ingress with automatic TLS via cert-manager
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: whoami
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-production
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - whoami.${CLUSTER_DOMAIN:-example.com}
+      secretName: whoami-tls
+  rules:
+    - host: whoami.${CLUSTER_DOMAIN:-example.com}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: whoami
+                port:
+                  name: http

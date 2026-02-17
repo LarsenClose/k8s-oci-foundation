@@ -1,0 +1,58 @@
+---
+# Istio Gateway configuration
+# Exposes HTTP/HTTPS for cluster services
+# Application-specific ports can be added via overlays or in apps/
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: cluster-gateway
+  namespace: istio-system
+spec:
+  selector:
+    istio: gateway
+  servers:
+    # HTTP traffic (redirects to HTTPS in production)
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*.${CLUSTER_DOMAIN:=example.com}"
+    # HTTPS traffic with TLS termination
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      hosts:
+        - "*.${CLUSTER_DOMAIN:=example.com}"
+      tls:
+        mode: SIMPLE
+        credentialName: cluster-gateway-tls
+---
+# Certificate for Gateway TLS
+# Uses cert-manager with cluster-issuer
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: cluster-gateway-tls
+  namespace: istio-system
+spec:
+  secretName: cluster-gateway-tls
+  issuerRef:
+    name: letsencrypt-production
+    kind: ClusterIssuer
+  commonName: "*.${CLUSTER_DOMAIN:=example.com}"
+  dnsNames:
+    - "*.${CLUSTER_DOMAIN:=example.com}"
+    - "${CLUSTER_DOMAIN:=example.com}"
+---
+# Default PeerAuthentication - Enable mTLS mesh-wide
+# Individual namespaces can override with PERMISSIVE or DISABLE if needed
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default-mtls
+  namespace: istio-system
+spec:
+  mtls:
+    mode: STRICT

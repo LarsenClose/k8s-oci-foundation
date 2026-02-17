@@ -1,0 +1,200 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.6.0
+
+      - name: Check formatting
+        run: tofu fmt -check -recursive -diff
+
+      - name: Validate modules
+        run: |
+          for module in modules/*/; do
+            echo "Validating $module"
+            cd "$module"
+            tofu init -backend=false
+            tofu validate
+            cd - > /dev/null
+          done
+
+      - name: Validate environments
+        run: |
+          for env in environments/*/; do
+            echo "Validating $env"
+            cd "$env"
+            tofu init -backend=false
+            tofu validate
+            cd - > /dev/null
+          done
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.6.0
+
+      - name: Run tests
+        run: |
+          tofu init -backend=false
+          tofu test
+
+  lint-yaml:
+    name: Lint YAML
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint GitOps manifests
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: gitops/
+          config_data: |
+            extends: default
+            rules:
+              line-length:
+                max: 200
+              truthy:
+                check-keys: false
+              comments:
+                min-spaces-from-content: 1
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          framework: terraform
+          soft_fail: true
+          output_format: cli
+          skip_check: CKV_TF_1
+
+  secrets-scan:
+    name: Secrets Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  taskfile:
+    name: Validate Taskfile
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+
+      - name: Validate Taskfile
+        run: task --list
+
+  tflint:
+    name: TFLint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - name: Init TFLint
+        run: tflint --init
+
+      - name: Run TFLint
+        run: tflint --recursive --format=compact
+
+  kubeconform:
+    name: Kubernetes Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubeconform
+        uses: yokawasa/action-setup-kube-tools@v0.11.1
+        with:
+          kubeconform: '0.6.4'
+
+      - name: Validate GitOps manifests
+        run: |
+          for dir in gitops/clusters/*/; do
+            echo "Validating $dir"
+            kubectl kustomize "$dir" | kubeconform -strict -summary || true
+          done
+
+          for dir in gitops/infrastructure/*/; do
+            echo "Validating $dir"
+            kubectl kustomize "$dir" | kubeconform -strict -summary || true
+          done
+
+          for dir in gitops/apps/*/; do
+            echo "Validating $dir"
+            kubectl kustomize "$dir" | kubeconform -strict -summary || true
+          done
+
+  kustomize-build:
+    name: Kustomize Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build all kustomizations
+        run: |
+          for dir in gitops/clusters/*/; do
+            echo "Building $dir"
+            kubectl kustomize "$dir" > /dev/null
+          done
+
+          for dir in gitops/infrastructure/*/; do
+            echo "Building $dir"
+            kubectl kustomize "$dir" > /dev/null || true
+          done
+
+          for dir in gitops/apps/*/; do
+            echo "Building $dir"
+            kubectl kustomize "$dir" > /dev/null || true
+          done

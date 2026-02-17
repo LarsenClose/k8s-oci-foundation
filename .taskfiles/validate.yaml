@@ -1,0 +1,95 @@
+version: '3'
+
+tasks:
+  prerequisites:
+    desc: Validate all prerequisites are installed and configured
+    cmds:
+      - task: tools
+      - task: oci
+      - task: cloudflare
+      - task: github
+      - echo "✓ All prerequisites satisfied"
+
+  tools:
+    desc: Check required CLI tools
+    vars:
+      REQUIRED_TOOLS: "tofu kubectl flux age sops jq yq oci"
+    cmds:
+      - |
+        missing=""
+        for tool in {{.REQUIRED_TOOLS}}; do
+          if ! command -v $tool &>/dev/null; then
+            missing="$missing $tool"
+          fi
+        done
+        if [ -n "$missing" ]; then
+          echo "✗ Missing tools:$missing"
+          exit 1
+        fi
+        echo "✓ All required tools installed"
+
+  oci:
+    desc: Validate OCI CLI configuration
+    cmds:
+      - |
+        if ! oci iam region list --query 'data[0].name' --raw-output &>/dev/null; then
+          echo "✗ OCI CLI not configured or credentials invalid"
+          echo "  Run: oci setup config"
+          exit 1
+        fi
+        echo "✓ OCI CLI configured"
+
+  cloudflare:
+    desc: Validate Cloudflare API token
+    env:
+      CLOUDFLARE_API_TOKEN: '{{.CLOUDFLARE_API_TOKEN}}'
+    cmds:
+      - |
+        if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+          echo "✗ CLOUDFLARE_API_TOKEN not set"
+          exit 1
+        fi
+        result=$(curl -s -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
+          -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+          -H "Content-Type: application/json" | jq -r '.success')
+        if [ "$result" != "true" ]; then
+          echo "✗ Cloudflare API token invalid"
+          exit 1
+        fi
+        echo "✓ Cloudflare API token valid"
+
+  github:
+    desc: Validate GitHub token
+    env:
+      GITHUB_TOKEN: '{{.GITHUB_TOKEN}}'
+    cmds:
+      - |
+        if [ -z "$GITHUB_TOKEN" ]; then
+          echo "✗ GITHUB_TOKEN not set"
+          exit 1
+        fi
+        result=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+          https://api.github.com/user | jq -r '.login // empty')
+        if [ -z "$result" ]; then
+          echo "✗ GitHub token invalid"
+          exit 1
+        fi
+        echo "✓ GitHub token valid (user: $result)"
+
+  env:
+    desc: Validate required environment variables
+    cmds:
+      - |
+        missing=""
+        for var in TF_VAR_tenancy_ocid TF_VAR_compartment_id TF_VAR_region \
+                   CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID TF_VAR_cloudflare_domain \
+                   GITHUB_TOKEN GITHUB_USER GITHUB_REPO; do
+          if [ -z "${!var:-}" ]; then
+            missing="$missing $var"
+          fi
+        done
+        if [ -n "$missing" ]; then
+          echo "✗ Missing environment variables:$missing"
+          exit 1
+        fi
+        echo "✓ All required environment variables set"

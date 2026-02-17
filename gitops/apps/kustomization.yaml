@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # Example application - uncomment to deploy
+  # - example-app
+
+  # Add your applications here:
+  # - my-api
+  # - my-database
+  # - my-frontend
+
+# Note: Application templates are available in _templates/
+# Copy a template to create a new application:
+#   cp -r gitops/apps/_templates/helm-app gitops/apps/my-app
+#   Edit gitops/apps/my-app/release.yaml with your values
+#   Add "- my-app" to this file

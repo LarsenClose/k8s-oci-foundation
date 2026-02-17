@@ -1,0 +1,65 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "schedule:weekly"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": ["terraform"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "matchManagers": ["terraform"],
+      "matchDepTypes": ["provider"],
+      "matchPackageNames": ["oracle/oci"],
+      "groupName": "oci-provider",
+      "automerge": false,
+      "labels": ["oci-update"]
+    },
+    {
+      "matchManagers": ["terraform"],
+      "matchDepTypes": ["provider"],
+      "matchPackageNames": ["hashicorp/kubernetes", "hashicorp/helm"],
+      "groupName": "k8s-providers",
+      "automerge": false
+    },
+    {
+      "matchManagers": ["helm-values", "helmv3"],
+      "groupName": "helm-charts",
+      "automerge": false,
+      "labels": ["helm-update"]
+    },
+    {
+      "matchManagers": ["flux"],
+      "groupName": "flux-components",
+      "automerge": false,
+      "labels": ["flux-update"]
+    },
+    {
+      "matchPackageNames": [
+        "cert-manager/cert-manager",
+        "hashicorp/vault",
+        "istio/istio"
+      ],
+      "automerge": false,
+      "labels": ["critical-infrastructure"]
+    },
+    {
+      "matchPackageNames": ["kubernetes/ingress-nginx"],
+      "automerge": false,
+      "labels": ["ingress-update"]
+    }
+  ],
+  "kubernetes": {
+    "fileMatch": ["gitops/.+\\.ya?ml$"]
+  },
+  "flux": {
+    "fileMatch": ["gitops/.+\\.ya?ml$"]
+  },
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"]
+  }
+}

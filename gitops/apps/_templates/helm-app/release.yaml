@@ -1,0 +1,75 @@
+---
+# Helm Repository Source
+# Points to the chart repository
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: my-app-charts
+  namespace: my-app
+spec:
+  interval: 24h
+  url: https://charts.example.com  # Replace with your chart repo
+---
+# Helm Release
+# Deploys the application from the chart
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: my-app
+  namespace: my-app
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: my-app-chart         # Chart name
+      version: "1.0.0"            # Pin to specific version
+      sourceRef:
+        kind: HelmRepository
+        name: my-app-charts
+  # Values override - customize for your deployment
+  values:
+    replicaCount: 2
+
+    image:
+      repository: ${DOCKER_REGISTRY:-docker.io}/my-org/my-app
+      tag: "${MY_APP_VERSION:-latest}"
+      pullPolicy: IfNotPresent
+
+    service:
+      type: ClusterIP
+      port: 80
+
+    ingress:
+      enabled: true
+      className: nginx
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-production
+      hosts:
+        - host: my-app.${CLUSTER_DOMAIN:-example.com}
+          paths:
+            - path: /
+              pathType: Prefix
+      tls:
+        - secretName: my-app-tls
+          hosts:
+            - my-app.${CLUSTER_DOMAIN:-example.com}
+
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+
+    # Environment variables from ConfigMap/Secrets
+    # envFrom:
+    #   - configMapRef:
+    #       name: my-app-config
+    #   - secretRef:
+    #       name: my-app-secrets
+
+    persistence:
+      enabled: false
+      # storageClass: ${STORAGE_CLASS:-oci-bv}
+      # size: 10Gi

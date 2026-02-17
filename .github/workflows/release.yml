@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.6.0
+
+      - name: Validate before release
+        run: |
+          tofu fmt -check -recursive
+          for module in modules/*/; do
+            echo "Validating $module"
+            cd "$module"
+            tofu init -backend=false
+            tofu validate
+            cd - > /dev/null
+          done
+
+      - name: Build GitOps manifests
+        run: |
+          mkdir -p dist
+
+          # Build cluster manifests
+          for dir in gitops/clusters/*/; do
+            name=$(basename "$dir")
+            echo "Building cluster: $name"
+            kubectl kustomize "$dir" > "dist/cluster-$name.yaml"
+          done
+
+          # Build infrastructure manifests
+          for dir in gitops/infrastructure/*/; do
+            name=$(basename "$dir")
+            echo "Building infrastructure: $name"
+            kubectl kustomize "$dir" > "dist/infrastructure-$name.yaml" || true
+          done
+
+          # Create checksums
+          cd dist && sha256sum *.yaml > checksums.txt 2>/dev/null || true
+
+      - name: Generate terraform-docs
+        uses: terraform-docs/gh-actions@v1
+        with:
+          find-dir: modules/
+          output-method: replace-document
+          git-push: false
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref, '-') }}

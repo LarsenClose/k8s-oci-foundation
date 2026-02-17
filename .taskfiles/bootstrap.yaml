@@ -1,0 +1,146 @@
+version: '3'
+
+vars:
+  GITOPS_REPO: '{{.GITHUB_REPO | default "gitops-k8s"}}'
+  GITOPS_PATH: '{{.ROOT_DIR}}/gitops/clusters/oci-prod'
+
+tasks:
+  flux:
+    desc: Bootstrap FluxCD on cluster
+    env:
+      KUBECONFIG: '{{.ROOT_DIR}}/kubeconfig'
+    cmds:
+      - task: flux:check
+      - task: flux:install
+      - task: flux:sops
+      - task: flux:source
+      - echo "✓ FluxCD bootstrapped successfully"
+
+  flux:check:
+    desc: Pre-flight checks for FluxCD
+    cmds:
+      - flux check --pre
+      - kubectl cluster-info
+
+  flux:install:
+    desc: Install FluxCD components
+    env:
+      GITHUB_TOKEN: '{{.GITHUB_TOKEN}}'
+    cmds:
+      - |
+        flux bootstrap github \
+          --owner=${GITHUB_USER} \
+          --repository=${GITOPS_REPO} \
+          --branch=main \
+          --path=gitops/clusters/oci-prod \
+          --personal \
+          --private=true \
+          --components-extra=image-reflector-controller,image-automation-controller
+
+  flux:sops:
+    desc: Configure SOPS age key for FluxCD
+    cmds:
+      - |
+        if [ ! -f {{.ROOT_DIR}}/age.key ]; then
+          echo "✗ age.key not found. Run 'task init' first."
+          exit 1
+        fi
+        kubectl create secret generic sops-age \
+          --namespace=flux-system \
+          --from-file=age.agekey={{.ROOT_DIR}}/age.key \
+          --dry-run=client -o yaml | kubectl apply -f -
+        echo "✓ SOPS age key configured in flux-system"
+
+  flux:source:
+    desc: Create GitRepository source
+    cmds:
+      - |
+        flux create source git gitops \
+          --url=https://github.com/${GITHUB_USER}/${GITOPS_REPO} \
+          --branch=main \
+          --interval=1m
+
+  flux:status:
+    desc: Check FluxCD status
+    cmds:
+      - flux get all -A
+      - flux logs --level=error
+
+  flux:reconcile:
+    desc: Force reconciliation
+    cmds:
+      - flux reconcile kustomization flux-system --with-source
+
+  namespaces:
+    desc: Create required namespaces
+    cmds:
+      - |
+        for ns in flux-system istio-system vault cert-manager ingress-nginx; do
+          kubectl create namespace $ns --dry-run=client -o yaml | kubectl apply -f -
+        done
+      - echo "✓ Namespaces created"
+
+  controllers:wait:
+    desc: Wait for core controllers to be ready
+    cmds:
+      - |
+        echo "Waiting for cert-manager..."
+        kubectl wait --for=condition=available deployment/cert-manager -n cert-manager --timeout=300s || true
+        echo "Waiting for ingress-nginx..."
+        kubectl wait --for=condition=available deployment/ingress-nginx-controller -n ingress-nginx --timeout=300s || true
+        echo "Waiting for vault..."
+        kubectl wait --for=condition=ready pod/vault-0 -n vault --timeout=300s || true
+        echo "✓ Core controllers ready"
+
+  # Genesis integration for envelope-encrypted secrets
+  genesis:
+    desc: Bootstrap secrets using genesis (envelope encryption with KMS)
+    cmds:
+      - task: genesis:check
+      - task: genesis:init
+      - task: genesis:apply
+      - echo "✓ Genesis secrets bootstrap complete"
+
+  genesis:check:
+    desc: Check genesis CLI is available
+    cmds:
+      - |
+        if ! command -v genesis &> /dev/null; then
+          echo "✗ genesis CLI not found"
+          echo "  Install: go install github.com/LarsenClose/genesis@latest"
+          exit 1
+        fi
+        genesis version
+
+  genesis:init:
+    desc: Initialize genesis bootstrap configuration
+    status:
+      - test -f {{.ROOT_DIR}}/genesis-bootstrap.yaml
+    cmds:
+      - |
+        echo "Initializing genesis with KMS envelope encryption..."
+        genesis init \
+          --output={{.ROOT_DIR}}/genesis-bootstrap.yaml \
+          --provider=${GENESIS_KMS_PROVIDER:-aws} \
+          --key-id=${GENESIS_KMS_KEY_ID}
+        echo "✓ Generated genesis-bootstrap.yaml"
+        echo "  This file is safe to commit - it contains envelope-encrypted data"
+
+  genesis:apply:
+    desc: Apply genesis secrets to cluster
+    cmds:
+      - |
+        if [ ! -f {{.ROOT_DIR}}/genesis-bootstrap.yaml ]; then
+          echo "✗ genesis-bootstrap.yaml not found. Run 'task bootstrap:genesis:init' first."
+          exit 1
+        fi
+        kubectl apply -f {{.ROOT_DIR}}/genesis-bootstrap.yaml
+        echo "✓ Genesis bootstrap secret applied"
+
+  genesis:verify:
+    desc: Verify genesis secrets are decrypted in cluster
+    cmds:
+      - |
+        kubectl get secret -n flux-system sops-age -o jsonpath='{.data}' | head -c 50
+        echo "..."
+        echo "✓ Genesis secret exists in cluster"

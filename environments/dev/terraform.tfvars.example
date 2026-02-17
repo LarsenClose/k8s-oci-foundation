@@ -1,0 +1,62 @@
+# OCI Configuration
+# Get these values from oci-tf-bootstrap discovery or OCI console
+tenancy_ocid   = "ocid1.tenancy.oc1..xxxxxxxxxxxx"
+compartment_id = "ocid1.compartment.oc1..xxxxxxxxxxxx"
+region         = "us-phoenix-1"
+
+# Environment
+environment = "dev"
+
+# Cloudflare Configuration
+# Create API token at: https://dash.cloudflare.com/profile/api-tokens
+# Required permissions: Zone:DNS:Edit, Zone:Zone:Read
+cloudflare_api_token   = ""  # Set via TF_VAR_cloudflare_api_token or .envrc
+cloudflare_account_id  = "your-cloudflare-account-id"
+cloudflare_domain      = "example.com"
+cloudflare_create_zone = false  # Set to true to create new zone
+
+# Load Balancer IP
+# Leave empty for initial deployment
+# Set after Istio Gateway gets an external IP:
+#   kubectl get svc -n istio-system istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+load_balancer_ip = ""
+
+# Kubernetes Configuration
+kubernetes_version = "v1.31.1"
+
+# Network Configuration
+vcn_cidrs           = ["10.0.0.0/16"]
+public_subnet_cidr  = "10.0.0.0/24"
+private_subnet_cidr = "10.0.1.0/24"
+
+# ARM Node Pool Configuration (OCI Always Free tier)
+# Free tier: 4 OCPUs, 24GB memory total
+arm_node_pool_count = 2    # Number of node pools
+arm_node_pool_size  = 1    # Nodes per pool
+arm_ocpus           = 2    # OCPUs per node (2 x 2 = 4 total)
+arm_memory_gbs      = 12   # Memory per node (2 x 12 = 24GB total)
+
+# SSH Key (optional)
+# ssh_public_key = "ssh-ed25519 AAAAC3..."
+
+# Resource Tags
+tags = {
+  project = "k8s-oci-foundation"
+}
+
+# Custom DNS Records (optional)
+# Add application-specific DNS records here
+# custom_dns_records = {
+#   "api-endpoint" = {
+#     name    = "api.dev"
+#     type    = "A"
+#     content = "10.0.1.100"
+#     proxied = true
+#   }
+#   "docs-cname" = {
+#     name    = "docs.dev"
+#     type    = "CNAME"
+#     content = "docs.example.com"
+#     proxied = true
+#   }
+# }

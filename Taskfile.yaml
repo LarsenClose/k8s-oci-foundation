@@ -1,0 +1,136 @@
+version: '3'
+set: [pipefail]
+shopt: [globstar]
+
+vars:
+  PROJECT_ROOT: '{{.ROOT_DIR}}'
+  MODULES_DIR: '{{.ROOT_DIR}}/modules'
+  GITOPS_DIR: '{{.ROOT_DIR}}/gitops'
+  ENVIRONMENTS_DIR: '{{.ROOT_DIR}}/environments'
+
+env:
+  KUBECONFIG: '{{.ROOT_DIR}}/kubeconfig'
+  SOPS_AGE_KEY_FILE: '{{.ROOT_DIR}}/age.key'
+
+includes:
+  validate: .taskfiles/validate.yaml
+  discover: .taskfiles/discover.yaml
+  infra: .taskfiles/infra.yaml
+  bootstrap: .taskfiles/bootstrap.yaml
+  vault: .taskfiles/vault.yaml
+
+tasks:
+  default:
+    desc: List all available tasks
+    cmds:
+      - task --list
+
+  init:
+    desc: Initialize project (first-time setup)
+    cmds:
+      - task: validate:prerequisites
+      - task: init:age-key
+      - task: init:directories
+      - echo "✓ Project initialized. Run 'task discover' to begin OCI discovery."
+
+  init:age-key:
+    desc: Generate age key for SOPS encryption
+    status:
+      - test -f {{.PROJECT_ROOT}}/age.key
+    cmds:
+      - age-keygen -o {{.PROJECT_ROOT}}/age.key
+      - chmod 600 {{.PROJECT_ROOT}}/age.key
+      - echo "✓ Generated age.key - keep this secure!"
+      - echo "  Backup this key before proceeding!"
+
+  init:directories:
+    desc: Create required directories
+    cmds:
+      - mkdir -p {{.ENVIRONMENTS_DIR}}/{dev,staging,prod}
+      - mkdir -p {{.GITOPS_DIR}}/{clusters,infrastructure,apps}
+
+  full-deploy:
+    desc: Run complete deployment pipeline
+    cmds:
+      - task: discover
+      - task: infra:plan
+      - task: infra:apply
+      - task: bootstrap:flux
+      - task: vault:init
+      - echo "✓ Full deployment complete!"
+      - echo "  Your cluster is ready at: https://*.$(kubectl get configmap cluster-settings -n flux-system -o jsonpath='{.data.CLUSTER_DOMAIN}' 2>/dev/null || echo 'your-domain.com')"
+
+  discover:
+    desc: Run OCI discovery and generate base Terraform
+    cmds:
+      - task: discover:oci
+
+  plan:
+    desc: Run Terraform plan for specified environment
+    vars:
+      ENV: '{{.ENV | default "dev"}}'
+    cmds:
+      - task: infra:plan ENV={{.ENV}}
+
+  apply:
+    desc: Apply Terraform for specified environment
+    vars:
+      ENV: '{{.ENV | default "dev"}}'
+    cmds:
+      - task: infra:apply ENV={{.ENV}}
+
+  reconcile:
+    desc: Force FluxCD reconciliation
+    cmds:
+      - flux reconcile kustomization flux-system --with-source
+    preconditions:
+      - test -f {{.KUBECONFIG}}
+      - which flux
+
+  status:
+    desc: Show deployment status
+    cmds:
+      - echo "=== FluxCD Status ==="
+      - flux get all -A 2>/dev/null || echo "FluxCD not installed"
+      - echo ""
+      - echo "=== Kubernetes Nodes ==="
+      - kubectl get nodes -o wide 2>/dev/null || echo "Cluster not accessible"
+      - echo ""
+      - echo "=== Pods by Namespace ==="
+      - kubectl get pods -A 2>/dev/null | head -40 || true
+
+  apps:
+    desc: List deployed applications
+    cmds:
+      - echo "=== Application Kustomizations ==="
+      - flux get kustomizations -A 2>/dev/null | grep -E "^apps|^NAME" || echo "No applications deployed"
+      - echo ""
+      - echo "=== Application Pods ==="
+      - kubectl get pods -l toolkit.fluxcd.io/tenant=apps -A 2>/dev/null || echo "No application pods found"
+
+  logs:
+    desc: View logs for a pod (usage - task logs POD=my-pod NS=my-namespace)
+    vars:
+      POD: '{{.POD}}'
+      NS: '{{.NS | default "default"}}'
+    cmds:
+      - kubectl logs -n {{.NS}} {{.POD}} -f
+    preconditions:
+      - test -n "{{.POD}}"
+
+  clean:
+    desc: Clean generated files (keeps secrets)
+    cmds:
+      - rm -rf {{.PROJECT_ROOT}}/.terraform
+      - rm -rf {{.PROJECT_ROOT}}/terraform.tfstate*
+      - rm -rf {{.PROJECT_ROOT}}/kubeconfig
+      - echo "✓ Cleaned generated files"
+
+  clean:all:
+    desc: Clean everything including secrets (DESTRUCTIVE)
+    prompt: This will delete age.key and all secrets. Continue?
+    cmds:
+      - task: clean
+      - rm -f {{.PROJECT_ROOT}}/age.key
+      - rm -f {{.PROJECT_ROOT}}/*.key
+      - echo "✓ All files cleaned"

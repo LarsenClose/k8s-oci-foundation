@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  # Certificate management - must deploy first
+  - cert-manager.yaml
+  # Service mesh - depends on cert-manager for mTLS
+  - istio.yaml
+  # Secrets management - depends on cert-manager for TLS
+  - vault.yaml
+  # HTTP ingress - depends on cert-manager for TLS
+  - ingress-nginx.yaml
+  # DNS automation - depends on services being deployed
+  - external-dns.yaml

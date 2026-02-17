@@ -1,0 +1,41 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-stateful-app
+spec:
+  serviceName: my-stateful-app
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-stateful-app
+  template:
+    metadata:
+      labels:
+        app: my-stateful-app
+    spec:
+      containers:
+        - name: my-stateful-app
+          image: ${DOCKER_REGISTRY:-docker.io}/my-org/my-stateful-app:${MY_APP_VERSION:-latest}
+          ports:
+            - containerPort: 8080
+              name: http
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: ${STORAGE_CLASS:-oci-bv}
+        resources:
+          requests:
+            storage: 10Gi

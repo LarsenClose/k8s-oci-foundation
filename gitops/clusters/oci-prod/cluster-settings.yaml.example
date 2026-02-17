@@ -1,0 +1,58 @@
+# Cluster Settings Template
+# ========================
+# Copy this file to cluster-settings.yaml and fill in your values.
+# This ConfigMap provides variable substitution for all FluxCD Kustomizations.
+#
+# IMPORTANT: Do NOT commit cluster-settings.yaml with real values to a public repo.
+# Add it to .gitignore and manage it separately per environment.
+#
+# For usage:
+# 1. Copy this file: cp cluster-settings.yaml.example cluster-settings.yaml
+# 2. Edit with your values
+# 3. Apply: kubectl apply -f cluster-settings.yaml
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-settings
+  namespace: flux-system
+data:
+  # ============================================================================
+  # CLUSTER IDENTIFICATION
+  # ============================================================================
+  CLUSTER_NAME: "oci-prod"                    # Unique cluster identifier
+  CLUSTER_TYPE: "oke"                         # Cluster type: oke, eks, gke, k3s, etc.
+  CLUSTER_REGION: "us-phoenix-1"              # Cloud region
+
+  # ============================================================================
+  # DOMAIN CONFIGURATION
+  # ============================================================================
+  # Replace with your actual domain
+  CLUSTER_DOMAIN: "example.com"               # Base domain for services
+  CLUSTER_EMAIL: "admin@example.com"          # Email for Let's Encrypt certs
+
+  # ============================================================================
+  # STORAGE CONFIGURATION
+  # ============================================================================
+  STORAGE_CLASS: "oci-bv"                     # OCI: oci-bv, AWS: gp3, GCP: standard
+
+  # ============================================================================
+  # NETWORK CONFIGURATION
+  # ============================================================================
+  CLUSTER_POD_CIDR: "10.244.0.0/16"          # Pod network CIDR
+  CLUSTER_SERVICE_CIDR: "10.96.0.0/16"       # Service network CIDR
+
+  # ============================================================================
+  # CONTAINER REGISTRY (for private images)
+  # ============================================================================
+  DOCKER_REGISTRY: "docker.io"                # Container registry URL
+
+  # ============================================================================
+  # APPLICATION-SPECIFIC SETTINGS
+  # ============================================================================
+  # Add your application-specific variables below.
+  # These are available for substitution in all GitOps manifests.
+  # Example:
+  # MY_APP_REPLICAS: "3"
+  # MY_APP_IMAGE_TAG: "v1.2.3"
+  # DATABASE_HOST: "postgres.default.svc.cluster.local"

@@ -1,0 +1,43 @@
+version: '3'
+
+vars:
+  DISCOVERY_OUTPUT: '{{.ROOT_DIR}}/generated/terraform-base'
+
+tasks:
+  oci:
+    desc: Run OCI discovery and generate base Terraform
+    cmds:
+      - mkdir -p {{.DISCOVERY_OUTPUT}}
+      - |
+        if command -v oci-tf-bootstrap &>/dev/null; then
+          oci-tf-bootstrap --output {{.DISCOVERY_OUTPUT}} --always-free
+        elif [ -x {{.ROOT_DIR}}/bin/oci-tf-bootstrap ]; then
+          {{.ROOT_DIR}}/bin/oci-tf-bootstrap --output {{.DISCOVERY_OUTPUT}} --always-free
+        else
+          echo "✗ oci-tf-bootstrap not found"
+          echo "  Install: brew install larsenclose/tap/oci-tf-bootstrap"
+          echo "  Or build: cd /path/to/oci-tf-bootstrap && make build && cp oci-tf-bootstrap {{.ROOT_DIR}}/bin/"
+          exit 1
+        fi
+      - echo "✓ OCI discovery complete. Output in {{.DISCOVERY_OUTPUT}}"
+
+  show:
+    desc: Show discovered OCI resources
+    cmds:
+      - |
+        if [ -f {{.DISCOVERY_OUTPUT}}/locals.tf ]; then
+          echo "=== Discovered OCI Resources ==="
+          cat {{.DISCOVERY_OUTPUT}}/locals.tf
+        else
+          echo "No discovery output found. Run 'task discover' first."
+        fi
+
+  json:
+    desc: Output discovery as JSON
+    cmds:
+      - |
+        if command -v oci-tf-bootstrap &>/dev/null; then
+          oci-tf-bootstrap --json
+        else
+          {{.ROOT_DIR}}/bin/oci-tf-bootstrap --json
+        fi

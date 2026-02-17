@@ -1,0 +1,131 @@
+# K8s-OCI-Foundation GitIgnore
+# ======================
+# This file ensures sensitive data is never committed to the repository
+
+# ============================================================================
+# TERRAFORM / OPENTOFU
+# ============================================================================
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Exclude all .tfvars files (contain secrets)
+*.tfvars
+*.tfvars.json
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration files
+.terraformrc
+terraform.rc
+
+# Lock files (optional - some teams commit these)
+# .terraform.lock.hcl
+
+# ============================================================================
+# KUBERNETES / FLUXCD
+# ============================================================================
+# Kubeconfig files
+kubeconfig
+kubeconfig.*
+*.kubeconfig
+
+# Cluster settings (contains environment-specific values)
+gitops/clusters/*/cluster-settings.yaml
+gitops/clusters/*/cluster-secrets.yaml
+
+# SOPS encrypted files that have been decrypted
+*.dec.yaml
+*.decrypted.yaml
+
+# Age keys
+*.age
+*.agekey
+age.key
+
+# ============================================================================
+# SECRETS / CREDENTIALS
+# ============================================================================
+# Environment files
+.env
+.env.*
+!.env.example
+!.envrc.example
+
+# Vault tokens
+.vault-token
+*.vault-token
+.vault-*-init.json
+
+# SSH keys
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+*.pem
+*.key
+
+# API tokens
+*-api-token
+*.token
+
+# ============================================================================
+# BUILD ARTIFACTS
+# ============================================================================
+# Generated Terraform
+generated/
+terraform-output/
+
+# Binary files
+bin/
+!bin/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# ============================================================================
+# IDE / EDITOR
+# ============================================================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ============================================================================
+# MISCELLANEOUS
+# ============================================================================
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Backup files
+*.bak
+*.backup
+
+# Downloaded repos (for reference only)
+bevel-repo/
+# agentful runtime state
+.agentful/
+
+# Production readiness audit (generated artifact)
+PRODUCTION_READINESS_AUDIT.md
+
+# Claude Code artifacts
+.claude/
+CLAUDE.md

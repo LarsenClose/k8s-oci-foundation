@@ -1,0 +1,118 @@
+version: '3'
+
+vars:
+  VAULT_NS: vault
+  VAULT_POD: vault-0
+
+tasks:
+  init:
+    desc: Initialize Vault (first time only)
+    cmds:
+      - task: init:status
+      - task: init:operator
+      - task: init:unseal
+      - task: init:k8s-auth
+      - echo "✓ Vault initialized and configured"
+
+  init:status:
+    desc: Check Vault status
+    cmds:
+      - kubectl exec -n {{.VAULT_NS}} {{.VAULT_POD}} -- vault status || true
+
+  init:operator:
+    desc: Initialize Vault operator
+    cmds:
+      - |
+        status=$(kubectl exec -n {{.VAULT_NS}} {{.VAULT_POD}} -- vault status -format=json 2>/dev/null | jq -r '.initialized' || echo "false")
+        if [ "$status" = "true" ]; then
+          echo "Vault already initialized"
+          exit 0
+        fi
+        echo "Initializing Vault..."
+        kubectl exec -n {{.VAULT_NS}} {{.VAULT_POD}} -- vault operator init \
+          -key-shares=5 \
+          -key-threshold=3 \
+          -format=json > {{.ROOT_DIR}}/.vault-init.json
+        chmod 600 {{.ROOT_DIR}}/.vault-init.json
+        echo ""
+        echo "⚠️  IMPORTANT: Vault keys saved to .vault-init.json"
+        echo "   Store these keys securely and offline!"
+        echo "   Root token: $(jq -r '.root_token' {{.ROOT_DIR}}/.vault-init.json)"
+
+  init:unseal:
+    desc: Unseal Vault using stored keys
+    cmds:
+      - |
+        if [ ! -f {{.ROOT_DIR}}/.vault-init.json ]; then
+          echo "✗ .vault-init.json not found"
+          exit 1
+        fi
+        sealed=$(kubectl exec -n {{.VAULT_NS}} {{.VAULT_POD}} -- vault status -format=json 2>/dev/null | jq -r '.sealed' || echo "true")
+        if [ "$sealed" = "false" ]; then
+          echo "Vault already unsealed"
+          exit 0
+        fi
+        echo "Unsealing Vault..."
+        for i in 0 1 2; do
+          key=$(jq -r ".unseal_keys_b64[$i]" {{.ROOT_DIR}}/.vault-init.json)
+          kubectl exec -n {{.VAULT_NS}} {{.VAULT_POD}} -- vault operator unseal "$key"
+        done
+        echo "✓ Vault unsealed"
+
+  init:k8s-auth:
+    desc: Configure Kubernetes auth method
+    cmds:
+      - |
+        ROOT_TOKEN=$(jq -r '.root_token' {{.ROOT_DIR}}/.vault-init.json)
+        kubectl exec -n {{.VAULT_NS}} {{.VAULT_POD}} -- sh -c "
+          export VAULT_TOKEN='$ROOT_TOKEN'
+          vault auth enable kubernetes 2>/dev/null || true
+          vault write auth/kubernetes/config \
+            kubernetes_host='https://kubernetes.default.svc:443'
+          vault secrets enable -path=secretsv2 kv-v2 2>/dev/null || true
+        "
+        echo "✓ Kubernetes auth configured"
+
+  status:
+    desc: Show Vault status
+    cmds:
+      - kubectl exec -n {{.VAULT_NS}} {{.VAULT_POD}} -- vault status
+
+  seal:
+    desc: Seal Vault (emergency)
+    prompt: This will seal Vault. Continue?
+    cmds:
+      - |
+        ROOT_TOKEN=$(jq -r '.root_token' {{.ROOT_DIR}}/.vault-init.json)
+        kubectl exec -n {{.VAULT_NS}} {{.VAULT_POD}} -- sh -c "
+          export VAULT_TOKEN='$ROOT_TOKEN'
+          vault operator seal
+        "
+
+  ui:
+    desc: Port-forward Vault UI
+    cmds:
+      - |
+        echo "Vault UI available at: http://localhost:8200"
+        echo "Root token: $(jq -r '.root_token' {{.ROOT_DIR}}/.vault-init.json 2>/dev/null || echo 'not found')"
+        kubectl port-forward -n {{.VAULT_NS}} svc/vault 8200:8200
+
+  disentangle:setup:
+    desc: Setup Vault paths for Disentangle namespace
+    cmds:
+      - |
+        ROOT_TOKEN=$(jq -r '.root_token' {{.ROOT_DIR}}/.vault-init.json)
+        kubectl exec -n {{.VAULT_NS}} {{.VAULT_POD}} -- sh -c "
+          export VAULT_TOKEN='$ROOT_TOKEN'
+          vault policy write disentangle - <<EOF
+        path \"secretsv2/data/disentangle/*\" {
+          capabilities = [\"create\", \"read\", \"update\", \"delete\", \"list\"]
+        }
+        EOF
+          vault write auth/kubernetes/role/vault-role \
+            bound_service_account_names=vault \
+            bound_service_account_namespaces=disentangle \
+            policies=disentangle \
+            ttl=1h
+        "
+        echo "Disentangle Vault policies configured"

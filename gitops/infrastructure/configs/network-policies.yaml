@@ -1,0 +1,71 @@
+---
+# Network Policies for security hardening
+# Restricts traffic flow between namespaces
+
+# Allow ingress traffic to disentangle namespace only from istio-system
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: app-ingress
+  namespace: disentangle
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow from Istio gateway
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+    # Allow internal application communication
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: disentangle
+    # Allow from Vault for secret injection
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: vault
+---
+# Allow Vault to communicate with all namespaces for agent injection
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: vault-egress
+  namespace: vault
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    # Allow all egress for Vault
+    - {}
+---
+# Deny all ingress to vault except from specific sources
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: vault-ingress
+  namespace: vault
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow from ingress-nginx for UI access
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+    # Allow from disentangle namespace for secret retrieval
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: disentangle
+    # Allow internal vault communication
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: vault

@@ -1,0 +1,137 @@
+---
+# Istio Service Mesh
+# Provides mTLS, traffic management, and observability
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istio-system
+  labels:
+    toolkit.fluxcd.io/tenant: platform-team
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: istio
+  namespace: istio-system
+spec:
+  interval: 24h
+  url: https://istio-release.storage.googleapis.com/charts
+---
+# Istio Base - CRDs and cluster-wide resources
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: istio-base
+  namespace: istio-system
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: base
+      version: "1.24.0"
+      sourceRef:
+        kind: HelmRepository
+        name: istio
+  install:
+    createNamespace: true
+  upgrade:
+    crds: CreateReplace
+---
+# Istiod - Control Plane
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: istiod
+  namespace: istio-system
+spec:
+  interval: 30m
+  dependsOn:
+    - name: istio-base
+  chart:
+    spec:
+      chart: istiod
+      version: "1.24.0"
+      sourceRef:
+        kind: HelmRepository
+        name: istio
+  values:
+    pilot:
+      autoscaleEnabled: true
+      autoscaleMin: 1
+      autoscaleMax: 3
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+    global:
+      hub: docker.io/istio
+      meshID: ${CLUSTER_NAME:=oci-prod}-mesh
+      multiCluster:
+        enabled: true
+        clusterName: ${CLUSTER_NAME:=oci-prod}
+      network: ${CLUSTER_NAME:=oci-prod}-network
+      proxy:
+        resources:
+          requests:
+            cpu: 10m
+            memory: 40Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+    meshConfig:
+      defaultConfig:
+        proxyStatsMatcher:
+          inclusionRegexps:
+            - ".*grpc.*"
+            - ".*outlier_detection.*"
+            - ".*circuit_breakers.*"
+---
+# Istio Gateway - Ingress for HTTP/HTTPS traffic
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: istio-gateway
+  namespace: istio-system
+spec:
+  interval: 30m
+  dependsOn:
+    - name: istiod
+  chart:
+    spec:
+      chart: gateway
+      version: "1.24.0"
+      sourceRef:
+        kind: HelmRepository
+        name: istio
+  values:
+    service:
+      type: LoadBalancer
+      annotations:
+        # OCI Load Balancer configuration
+        oci.oraclecloud.com/load-balancer-type: "lb"
+        service.beta.kubernetes.io/oci-load-balancer-shape: "flexible"
+        service.beta.kubernetes.io/oci-load-balancer-shape-flex-min: "10"
+        service.beta.kubernetes.io/oci-load-balancer-shape-flex-max: "100"
+        service.beta.kubernetes.io/oci-load-balancer-security-list-management-mode: "All"
+      ports:
+        # HTTP/HTTPS only - application-specific ports added via overlays
+        - port: 80
+          targetPort: 8080
+          name: http2
+        - port: 443
+          targetPort: 8443
+          name: https
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 5
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 1000m
+        memory: 512Mi

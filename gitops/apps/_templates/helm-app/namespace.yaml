@@ -1,0 +1,11 @@
+---
+# Application Namespace
+# Replace MY_APP with your application name
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: my-app
+  labels:
+    toolkit.fluxcd.io/tenant: apps
+    # Enable Istio sidecar injection if needed
+    # istio-injection: enabled
