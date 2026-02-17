@@ -18,6 +18,10 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = ">= 2.0.0"
     }
+    local = {
+      source  = "hashicorp/local"
+      version = ">= 2.0.0"
+    }
   }
 }
 
@@ -81,7 +85,6 @@ module "iam" {
   compartment_id = var.compartment_id
   tenancy_ocid   = var.tenancy_ocid
   cluster_name   = "${var.environment}-k8s"
-  cluster_ocid   = module.oke.cluster_id
   tags           = local.tags
 
   depends_on = [module.oke]
@@ -99,7 +102,6 @@ module "cloudflare_records" {
   source = "../../modules/cloudflare-records"
 
   zone_id           = module.cloudflare_zone.zone_id
-  domain            = var.cloudflare_domain
   cluster_subdomain = var.environment
 
   # Point to Istio Gateway LoadBalancer IP (set after first deployment)

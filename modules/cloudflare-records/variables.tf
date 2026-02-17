@@ -3,11 +3,6 @@ variable "zone_id" {
   type        = string
 }
 
-variable "domain" {
-  description = "Domain name for constructing FQDNs"
-  type        = string
-}
-
 variable "cluster_subdomain" {
   description = "Environment-specific subdomain (e.g., 'dev', 'staging', 'prod')"
   type        = string

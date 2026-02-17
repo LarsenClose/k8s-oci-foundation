@@ -13,12 +13,6 @@ variable "cluster_name" {
   type        = string
 }
 
-variable "cluster_ocid" {
-  description = "OKE cluster OCID for IAM policies"
-  type        = string
-  default     = ""
-}
-
 variable "enable_lb_policy" {
   description = "Enable load balancer management policy"
   type        = bool
