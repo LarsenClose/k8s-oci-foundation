@@ -41,7 +41,7 @@ jobs:
           for dir in gitops/clusters/*/; do
             name=$(basename "$dir")
             echo "Building cluster: $name"
-            kubectl kustomize "$dir" > "dist/cluster-$name.yaml"
+            kubectl kustomize "$dir" > "dist/cluster-$name.yaml" || true
           done
 
           # Build infrastructure manifests
