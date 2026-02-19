@@ -5,6 +5,10 @@ resources:
   # Example application - uncomment to deploy
   # - example-app
 
+  # Disentangle Network
+  - disentangle-deploy.yaml
+  - disentangle.yaml
+
   # Add your applications here:
   # - my-api
   # - my-database

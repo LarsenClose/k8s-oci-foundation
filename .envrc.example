@@ -8,12 +8,12 @@ export CLOUDFLARE_API_TOKEN="xxx"
 export CLOUDFLARE_ACCOUNT_ID="xxx"
 export TF_VAR_cloudflare_api_token="$CLOUDFLARE_API_TOKEN"
 export TF_VAR_cloudflare_account_id="$CLOUDFLARE_ACCOUNT_ID"
-export TF_VAR_domain="example.com"
+export TF_VAR_cloudflare_domain="example.com"
 
 # GitHub Configuration
 export GITHUB_TOKEN="ghp_xxx"
 export GITHUB_USER="username"
-export GITHUB_REPO="gitops-k8s"
+export GITHUB_REPO="k8s-oci-foundation"
 
 # SOPS Configuration
 export SOPS_AGE_KEY_FILE="$PWD/age.key"

@@ -54,9 +54,9 @@ tasks:
     dir: '{{.TF_DIR}}'
     cmds:
       - |
-        cluster_id=$(tofu output -raw cluster_ocid 2>/dev/null)
+        cluster_id=$(tofu output -raw cluster_id 2>/dev/null)
         if [ -z "$cluster_id" ]; then
-          echo "✗ No cluster_ocid output found"
+          echo "✗ No cluster_id output found"
           exit 1
         fi
         oci ce cluster create-kubeconfig \
