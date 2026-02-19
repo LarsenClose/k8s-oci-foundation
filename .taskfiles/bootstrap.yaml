@@ -1,8 +1,9 @@
 version: '3'
 
 vars:
-  GITOPS_REPO: '{{.GITHUB_REPO | default "gitops-k8s"}}'
-  GITOPS_PATH: '{{.ROOT_DIR}}/gitops/clusters/oci-prod'
+  ENV: '{{.ENV | default "dev"}}'
+  GITOPS_REPO: '{{.GITHUB_REPO | default "k8s-oci-foundation"}}'
+  GITOPS_PATH: '{{.ROOT_DIR}}/gitops/clusters/oci-{{.ENV}}'
 
 tasks:
   flux:
@@ -24,6 +25,11 @@ tasks:
 
   flux:install:
     desc: Install FluxCD components
+    preconditions:
+      - sh: '[ -n "${GITHUB_USER}" ]'
+        msg: "GITHUB_USER is not set. Export it in your .envrc or shell."
+      - sh: '[ -n "${GITHUB_TOKEN}" ]'
+        msg: "GITHUB_TOKEN is not set. Export it in your .envrc or shell."
     env:
       GITHUB_TOKEN: '{{.GITHUB_TOKEN}}'
     cmds:
@@ -32,7 +38,7 @@ tasks:
           --owner=${GITHUB_USER} \
           --repository=${GITOPS_REPO} \
           --branch=main \
-          --path=gitops/clusters/oci-prod \
+          --path=gitops/clusters/oci-{{.ENV}} \
           --personal \
           --private=true \
           --components-extra=image-reflector-controller,image-automation-controller
