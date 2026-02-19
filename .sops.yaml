@@ -1,0 +1,5 @@
+creation_rules:
+  - path_regex: gitops/.*\.enc\.yaml$
+    age: >-
+      # Replace with your age public key from ~/.config/sops/age/keys.txt
+      age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
