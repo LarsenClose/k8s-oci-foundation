@@ -32,7 +32,6 @@ Manages a Cloudflare DNS zone with automatic detection of existing zones. Create
 | account\_id | Cloudflare account ID | `string` | n/a | yes |
 | create\_zone | Whether to create a new zone (true) or use an existing one (false) | `bool` | `false` | no |
 | plan | Cloudflare plan (free, pro, business, enterprise) | `string` | `"free"` | no |
-| configure\_settings | Apply default zone settings | `bool` | `true` | no |
 
 ## Outputs
 

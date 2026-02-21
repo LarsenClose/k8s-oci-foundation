@@ -33,7 +33,6 @@ Configures OCI Identity and Access Management resources for Kubernetes cluster o
 | tenancy\_ocid | Tenancy OCID (required for dynamic groups) | `string` | n/a | yes |
 | compartment\_id | Compartment OCID for policies | `string` | n/a | yes |
 | cluster\_name | Cluster name prefix for resources | `string` | n/a | yes |
-| cluster\_ocid | OKE cluster OCID for IAM policies | `string` | `""` | no |
 | enable\_lb\_policy | Enable load balancer management policy | `bool` | `true` | no |
 | tags | Freeform tags | `map(string)` | `{}` | no |
 
