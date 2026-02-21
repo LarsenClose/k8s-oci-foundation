@@ -49,12 +49,21 @@ tasks:
           echo "✗ CLOUDFLARE_API_TOKEN not set"
           exit 1
         fi
+        # Try user token endpoint first, fall back to account endpoint
         result=$(curl -s -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
           -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
           -H "Content-Type: application/json" | jq -r '.success')
         if [ "$result" != "true" ]; then
-          echo "✗ Cloudflare API token invalid"
-          exit 1
+          # Account-scoped tokens use a different verify endpoint
+          acct_id="${CLOUDFLARE_ACCOUNT_ID:-${TF_VAR_cloudflare_account_id:-}}"
+          if [ -n "$acct_id" ]; then
+            result=$(curl -s "https://api.cloudflare.com/client/v4/accounts/$acct_id/tokens/verify" \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | jq -r '.success')
+          fi
+          if [ "$result" != "true" ]; then
+            echo "✗ Cloudflare API token invalid"
+            exit 1
+          fi
         fi
         echo "✓ Cloudflare API token valid"
 
