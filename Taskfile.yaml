@@ -70,14 +70,18 @@ tasks:
     vars:
       ENV: '{{.ENV | default "dev"}}'
     cmds:
-      - task: infra:plan ENV={{.ENV}}
+      - task: infra:plan
+        vars:
+          ENV: '{{.ENV}}'
 
   apply:
     desc: Apply Terraform for specified environment
     vars:
       ENV: '{{.ENV | default "dev"}}'
     cmds:
-      - task: infra:apply ENV={{.ENV}}
+      - task: infra:apply
+        vars:
+          ENV: '{{.ENV}}'
 
   reconcile:
     desc: Force FluxCD reconciliation

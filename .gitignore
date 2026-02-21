@@ -33,6 +33,10 @@ terraform.rc
 # Lock files (optional - some teams commit these)
 # .terraform.lock.hcl
 
+# Terraform plan output files (contain absolute paths, machine-specific)
+tfplan
+*.tfplan
+
 # ============================================================================
 # KUBERNETES / FLUXCD
 # ============================================================================

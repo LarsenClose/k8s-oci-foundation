@@ -9,6 +9,7 @@ terraform {
   }
 }
 
+# Data source to check if zone already exists
 data "cloudflare_zones" "existing" {
   filter {
     name   = var.domain
@@ -17,13 +18,8 @@ data "cloudflare_zones" "existing" {
 }
 
 locals {
-  # Determine if zone exists or needs to be created
-  zone_exists = length(data.cloudflare_zones.existing.zones) > 0
-
-  # Only create zone if explicitly requested AND it doesn't exist
+  zone_exists   = length(data.cloudflare_zones.existing.zones) > 0
   should_create = var.create_zone && !local.zone_exists
-
-  # Get zone ID from existing zone or newly created zone
   zone_id = local.zone_exists ? data.cloudflare_zones.existing.zones[0].id : (
     local.should_create ? cloudflare_zone.main[0].id : null
   )
@@ -35,17 +31,4 @@ resource "cloudflare_zone" "main" {
   zone       = var.domain
   plan       = var.plan
   type       = "full"
-}
-
-resource "cloudflare_zone_settings_override" "main" {
-  count   = var.configure_settings && local.zone_id != null ? 1 : 0
-  zone_id = local.zone_id
-
-  settings {
-    always_use_https         = "on"
-    automatic_https_rewrites = "on"
-    min_tls_version          = "1.2"
-    ssl                      = "full"
-    universal_ssl            = "on"
-  }
 }
