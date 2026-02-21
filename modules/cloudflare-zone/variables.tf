@@ -20,8 +20,3 @@ variable "plan" {
   default     = "free"
 }
 
-variable "configure_settings" {
-  description = "Apply default zone settings"
-  type        = bool
-  default     = true
-}
