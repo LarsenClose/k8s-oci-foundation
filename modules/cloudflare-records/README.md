@@ -30,7 +30,6 @@ Manages DNS records within a Cloudflare zone. Supports A records, CNAME records,
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | zone\_id | Cloudflare zone ID | `string` | n/a | yes |
-| domain | Domain name for constructing FQDNs | `string` | n/a | yes |
 | cluster\_subdomain | Environment-specific subdomain (e.g., 'dev', 'staging', 'prod') | `string` | n/a | yes |
 | a\_records | Map of A records to create | <pre>map(object({<br>  ip      = string<br>  proxied = optional(bool, true)<br>  ttl     = optional(number)<br>}))</pre> | `{}` | no |
 | cname\_records | Map of CNAME records to create | <pre>map(object({<br>  target  = string<br>  proxied = optional(bool, true)<br>  ttl     = optional(number)<br>}))</pre> | `{}` | no |
