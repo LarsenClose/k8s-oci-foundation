@@ -10,8 +10,8 @@ mock_provider "cloudflare" {
 }
 
 variables {
-  domain     = "example.com"
-  account_id = "test-account-id"
+  domain      = "example.com"
+  account_id  = "test-account-id"
   create_zone = true
   plan        = "free"
 }
