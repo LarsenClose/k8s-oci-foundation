@@ -1,5 +1,5 @@
 # Unit tests for cloudflare-zone module
-# Tests zone creation and settings configuration
+# Tests zone creation and lookup logic
 
 mock_provider "cloudflare" {
   mock_data "cloudflare_zones" {
@@ -10,11 +10,10 @@ mock_provider "cloudflare" {
 }
 
 variables {
-  domain             = "example.com"
-  account_id         = "test-account-id"
-  create_zone        = true
-  plan               = "free"
-  configure_settings = true
+  domain     = "example.com"
+  account_id = "test-account-id"
+  create_zone = true
+  plan        = "free"
 }
 
 run "validates_required_variables" {
@@ -69,7 +68,7 @@ run "skips_zone_creation_when_not_requested" {
   }
 }
 
-run "configures_settings_when_enabled" {
+run "zone_uses_full_type" {
   command = plan
 
   module {
@@ -77,17 +76,16 @@ run "configures_settings_when_enabled" {
   }
 
   variables {
-    create_zone        = true
-    configure_settings = true
+    create_zone = true
   }
 
   assert {
-    condition     = length(cloudflare_zone_settings_override.main) == 1
-    error_message = "zone settings should be configured when configure_settings is true"
+    condition     = cloudflare_zone.main[0].type == "full"
+    error_message = "zone should use type full"
   }
 }
 
-run "skips_settings_when_disabled" {
+run "zone_account_id_set" {
   command = plan
 
   module {
@@ -95,13 +93,12 @@ run "skips_settings_when_disabled" {
   }
 
   variables {
-    create_zone        = true
-    configure_settings = false
+    create_zone = true
   }
 
   assert {
-    condition     = length(cloudflare_zone_settings_override.main) == 0
-    error_message = "zone settings should not be configured when configure_settings is false"
+    condition     = cloudflare_zone.main[0].account_id == var.account_id
+    error_message = "zone account_id should match input variable"
   }
 }
 
