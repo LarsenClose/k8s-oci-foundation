@@ -100,6 +100,37 @@ resource "oci_core_security_list" "public" {
     description = "Kubelet API"
   }
 
+  ingress_security_rules {
+    protocol = "6"
+    source   = var.private_subnet_cidr
+    tcp_options {
+      min = 12250
+      max = 12250
+    }
+    description = "OKE control plane to worker"
+  }
+
+  ingress_security_rules {
+    protocol = "1"
+    source   = "0.0.0.0/0"
+    icmp_options {
+      type = 3
+      code = 4
+    }
+    description = "Path MTU Discovery"
+  }
+
+  # All TCP from within VCN (node-to-node, NodePort, OKE internal)
+  ingress_security_rules {
+    protocol = "6" # TCP
+    source   = var.vcn_cidrs[0]
+    tcp_options {
+      min = 1
+      max = 65535
+    }
+    description = "All TCP from VCN for OKE node communication"
+  }
+
   freeform_tags = var.tags
 }
 
@@ -114,8 +145,19 @@ resource "oci_core_security_list" "private" {
   }
 
   ingress_security_rules {
-    protocol = "all"
-    source   = var.vcn_cidrs[0]
+    protocol    = "all"
+    source      = var.vcn_cidrs[0]
+    description = "All traffic from VCN"
+  }
+
+  ingress_security_rules {
+    protocol = "1"
+    source   = "0.0.0.0/0"
+    icmp_options {
+      type = 3
+      code = 4
+    }
+    description = "Path MTU Discovery"
   }
 
   freeform_tags = var.tags
