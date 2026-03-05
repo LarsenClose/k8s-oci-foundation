@@ -37,12 +37,27 @@ data "oci_identity_availability_domains" "ads" {
   compartment_id = var.tenancy_ocid
 }
 
-data "oci_core_images" "ubuntu_arm" {
-  compartment_id           = var.compartment_id
-  operating_system         = "Canonical Ubuntu"
-  operating_system_version = "24.04 Minimal aarch64"
-  sort_by                  = "TIMECREATED"
-  sort_order               = "DESC"
+# Dynamic OKE node image lookup -- automatically selects the latest
+# OKE-compatible image matching our K8s version and ARM architecture.
+# This prevents version drift between kubernetes_version and node images.
+data "oci_containerengine_node_pool_option" "all" {
+  node_pool_option_id = "all"
+  compartment_id      = var.compartment_id
+}
+
+locals {
+  # Extract major.minor from kubernetes_version (e.g., "v1.31.1" -> "1.31")
+  k8s_major_minor = join(".", slice(split(".", trimprefix(var.kubernetes_version, "v")), 0, 2))
+
+  # Filter OKE images: aarch64 + matching K8s major.minor
+  oke_arm_images = [
+    for s in data.oci_containerengine_node_pool_option.all.sources :
+    s if length(regexall("aarch64", s.source_name)) > 0 &&
+         length(regexall("OKE-${local.k8s_major_minor}\\.", s.source_name)) > 0
+  ]
+
+  # Select the last matching image (latest by version/date in sorted source list)
+  oke_arm_image_id = local.oke_arm_images[length(local.oke_arm_images) - 1].image_id
 }
 
 module "network" {
@@ -72,7 +87,7 @@ module "oke" {
   arm_node_pool_size   = var.arm_node_pool_size
   arm_ocpus            = var.arm_ocpus
   arm_memory_gbs       = var.arm_memory_gbs
-  arm_image_id         = data.oci_core_images.ubuntu_arm.images[0].id
+  arm_image_id         = local.oke_arm_image_id
   ssh_public_key       = var.ssh_public_key
   tags                 = local.tags
 
