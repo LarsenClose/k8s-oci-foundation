@@ -46,17 +46,18 @@ data "oci_containerengine_node_pool_option" "all" {
 }
 
 locals {
-  # Extract major.minor from kubernetes_version (e.g., "v1.31.1" -> "1.31")
-  k8s_major_minor = join(".", slice(split(".", trimprefix(var.kubernetes_version, "v")), 0, 2))
+  # Extract full version from kubernetes_version (e.g., "v1.31.10" -> "1.31.10")
+  k8s_version_trimmed = trimprefix(var.kubernetes_version, "v")
 
-  # Filter OKE images: aarch64 + matching K8s major.minor
+  # Filter OKE images: aarch64 + exact K8s version match
+  # Trailing dash prevents "OKE-1.31.1-" from matching when we need "OKE-1.31.10-"
   oke_arm_images = [
     for s in data.oci_containerengine_node_pool_option.all.sources :
     s if length(regexall("aarch64", s.source_name)) > 0 &&
-         length(regexall("OKE-${local.k8s_major_minor}\\.", s.source_name)) > 0
+    length(regexall("OKE-${local.k8s_version_trimmed}-", s.source_name)) > 0
   ]
 
-  # Select the last matching image (latest by version/date in sorted source list)
+  # Select the last matching image (latest by date in sorted source list)
   oke_arm_image_id = local.oke_arm_images[length(local.oke_arm_images) - 1].image_id
 }
 
