@@ -28,11 +28,14 @@ jobs:
           tofu_version: 1.8.8
 
       - name: Configure OCI credentials
-        if: ${{ secrets.OCI_CONFIG != '' }}
+        if: env.OCI_CONFIG != ''
+        env:
+          OCI_CONFIG: ${{ secrets.OCI_CONFIG }}
+          OCI_KEY: ${{ secrets.OCI_KEY }}
         run: |
           mkdir -p ~/.oci
-          echo "${{ secrets.OCI_CONFIG }}" > ~/.oci/config
-          echo "${{ secrets.OCI_KEY }}" > ~/.oci/key.pem
+          echo "$OCI_CONFIG" > ~/.oci/config
+          echo "$OCI_KEY" > ~/.oci/key.pem
           chmod 600 ~/.oci/key.pem ~/.oci/config
 
       - name: Terraform Init
@@ -44,9 +47,11 @@ jobs:
         working-directory: environments/${{ matrix.environment }}
         run: |
           tofu plan -no-color -input=false 2>&1 | tee plan.txt || true
-          echo "plan<<EOF" >> $GITHUB_OUTPUT
-          head -100 plan.txt >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          {
+            echo "plan<<EOF"
+            head -100 plan.txt
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
         continue-on-error: true
 
       - name: Comment Plan on PR
