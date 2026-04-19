@@ -131,6 +131,17 @@ resource "oci_core_security_list" "public" {
     description = "All TCP from VCN for OKE node communication"
   }
 
+  # Nebula lighthouse UDP port
+  ingress_security_rules {
+    protocol = "17" # UDP
+    source   = "0.0.0.0/0"
+    udp_options {
+      min = 4242
+      max = 4242
+    }
+    description = "Nebula lighthouse"
+  }
+
   freeform_tags = var.tags
 }
 
@@ -158,6 +169,17 @@ resource "oci_core_security_list" "private" {
       code = 4
     }
     description = "Path MTU Discovery"
+  }
+
+  # Nebula NodePort UDP
+  ingress_security_rules {
+    protocol = "17" # UDP
+    source   = "0.0.0.0/0"
+    udp_options {
+      min = 32086
+      max = 32086
+    }
+    description = "Nebula NodePort"
   }
 
   freeform_tags = var.tags

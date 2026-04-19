@@ -123,10 +123,38 @@ module "cloudflare_records" {
   # Point to Istio Gateway LoadBalancer IP (set after first deployment)
   load_balancer_ip = var.load_balancer_ip
 
-  # Custom application-specific DNS records
-  custom_records = var.custom_dns_records
+  # Custom application-specific DNS records + lighthouse A records
+  custom_records = merge(var.custom_dns_records, {
+    lighthouse1 = {
+      name    = "lighthouse1"
+      type    = "A"
+      content = module.nebula_lighthouse.lighthouse_public_ips[0]
+      proxied = false # DNS-only, UDP traffic cannot be proxied
+      ttl     = 300
+    }
+    lighthouse2 = {
+      name    = "lighthouse2"
+      type    = "A"
+      content = module.nebula_lighthouse.lighthouse_public_ips[1]
+      proxied = false # DNS-only, UDP traffic cannot be proxied
+      ttl     = 300
+    }
+  })
 
-  depends_on = [module.cloudflare_zone]
+  depends_on = [module.cloudflare_zone, module.nebula_lighthouse]
+}
+
+module "nebula_lighthouse" {
+  source = "../../modules/oci-nebula-lighthouse"
+
+  compartment_id    = var.compartment_id
+  vcn_id            = module.network.vcn_id
+  public_subnet_id  = module.network.public_subnet_id
+  lighthouse_count  = var.lighthouse_count
+  node_instance_ids = var.lighthouse_node_instance_ids
+  tags              = local.tags
+
+  depends_on = [module.oke]
 }
 
 resource "local_file" "kubeconfig" {

@@ -49,3 +49,22 @@ output "wildcard_domain" {
   description = "Wildcard domain for cluster services"
   value       = "*.${var.environment}.${var.cloudflare_domain}"
 }
+
+# Nebula lighthouse outputs
+output "lighthouse_public_ips" {
+  description = "Reserved public IPs for nebula lighthouses"
+  value       = module.nebula_lighthouse.lighthouse_public_ips
+}
+
+output "lighthouse_private_ips" {
+  description = "Private IPs of nebula lighthouse secondary VNICs"
+  value       = module.nebula_lighthouse.lighthouse_private_ips
+}
+
+output "lighthouse_dns" {
+  description = "Lighthouse DNS records"
+  value = [
+    "lighthouse1.${var.cloudflare_domain}",
+    "lighthouse2.${var.cloudflare_domain}",
+  ]
+}

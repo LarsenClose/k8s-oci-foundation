@@ -119,3 +119,14 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "lighthouse_count" {
+  description = "Number of nebula lighthouses"
+  type        = number
+  default     = 2
+}
+
+variable "lighthouse_node_instance_ids" {
+  description = "OKE worker node instance OCIDs for nebula lighthouse secondary VNICs"
+  type        = list(string)
+}
